@@ -91,7 +91,7 @@ model Order{
   status Status? @default(PENDING)
   amount Float?
   orderItems OrderItems[]
-  // created_at DateTime @default(now())
+  created_at DateTime @default(now())
   // cart Cart? @relation(fields: [cartId], references: [id])
   // cartId Int?
 }
