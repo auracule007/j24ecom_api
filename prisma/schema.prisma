@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+// category model 
+model Category {
+  id Int @id @default(autoincrement())
+  name String
+  description String
+  image String?
+  created_at DateTime @default(now())
+  products Product[]
+}
+
+model Product {
+  id Int @id @default(autoincrement())
+  category Category? @relation(fields: [categoryId], references: [id])
+  categoryId Int?
+  name String @db.VarChar(50)
+  description String 
+  price Int
+  image String?
+  featured Boolean @default(false)
+  trending Boolean @default(false)
+  created_at DateTime @default(now())
+  product_update_at DateTime @updatedAt
+  cartItems CartItems[]
+  orderItems OrderItems[]
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  email String @unique
+  password String
+  image String?
+  firstName String
+  lastName String
+  address String?
+  phone String?
+  role Role?
+  cart Cart[]
+  order Order[]
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model CartItems {
+  id        Int      @id @default(autoincrement())
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade) // Add onDelete: Cascade
+  cartId    Int
+  product   Product? @relation(fields: [productId], references: [id])
+  productId Int?
+  quantity  Int
+  amount    Float
+  paid      Boolean  @default(false)
+}
+
+model Cart {
+  id        Int         @id @default(autoincrement())
+  User      User?       @relation(fields: [userId], references: [id])
+  userId    Int?        @unique // Make userId unique if a user can only have one cart
+  cartItems CartItems[]
+}
+
+model Order{
+  id Int @id @default(autoincrement())
+  user User? @relation(fields: [userId], references: [id])
+  userId Int?
+  orderId  String @unique 
+  firstName String?
+  lastName String?
+  email String?
+  address String?
+  phone String?
+  transactionId String?
+  status Status? @default(PENDING)
+  amount Float?
+  orderItems OrderItems[]
+  // created_at DateTime @default(now())
+  // cart Cart? @relation(fields: [cartId], references: [id])
+  // cartId Int?
+}
+
+enum Status {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model OrderItems {
+  id Int @id @default(autoincrement())
+  order Order? @relation(fields: [orderId], references: [id])
+  orderId Int?
+  products Product? @relation(fields: [productId], references: [id])
+  productId Int?
+  quantity Int
+  amount Float
+  paid Boolean @default(false)
+}
