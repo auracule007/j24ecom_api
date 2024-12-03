@@ -16,7 +16,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://ecommerce-five-inky.vercel.app",
+    // origin: "http://localhost:5173",
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "auth-token"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -42,7 +43,7 @@ const swaggerOptions = {
       },
       servers: [
         {
-          url: "http://localhost:8000",
+          url: "*",
         },
       ],
     },
