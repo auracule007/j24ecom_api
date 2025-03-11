@@ -16,13 +16,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(
   cors({
-    origin: "https://ecommerce-five-inky.vercel.app",
-    // origin: "http://localhost:5173",
-    credentials: true,
+    origin: true, // Allows any frontend
+    credentials: true, // Allows cookies, authentication headers
     allowedHeaders: ["Content-Type", "Authorization", "auth-token"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
 );
+// app.use(
+//   cors({
+//     origin: "https://ecommerce-five-inky.vercel.app",
+//     // origin: "http://localhost:5173",
+//     credentials: true,
+//     allowedHeaders: ["Content-Type", "Authorization", "auth-token"],
+//     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+//   })
+// );
 app.use("/", categoryRoutes);
 app.use("/", productRoutes);
 app.use("/", authRoutes);
