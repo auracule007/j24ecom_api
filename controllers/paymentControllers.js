@@ -1,7 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const { v4: uuidv4 } = require("uuid");
 const dotenv = require("dotenv");
-const { connect } = require("../routes/paymentRoutes");
+// const { connect } = require("../routes/paymentRoutes");
 const prisma = new PrismaClient();
 const transporter = require("../config/email");
 
