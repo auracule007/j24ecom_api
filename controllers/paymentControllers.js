@@ -32,8 +32,9 @@ exports.initiatePayment = async (req, res) => {
       tx_ref: orderId,
       amount,
       currency: "NGN",
-      redirect_url: "https://ecommerce-five-inky.vercel.app/thankyou" || "http://localhost:5173/thankyou",
-      // redirect_url: "http://localhost:5173/thankyou",
+      redirect_url: "http://localhost:5173/thankyou",
+      // redirect_url: "https://ecommerce-five-inky.vercel.app/thankyou" || "http://localhost:5173/thankyou",
+      // redirect_url: "https://ecommerce-five-inky.vercel.app/thankyou",
       // redirect_url: 'http://localhost:8000/api/verify-payment',
       customer: {
         email: users.email,
