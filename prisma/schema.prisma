@@ -23,14 +23,43 @@ model Category {
   products    Product[]
 }
 
+// model Product {
+//   id                Int          @id @default(autoincrement())
+//   category          Category?    @relation(fields: [categoryId], references: [id])
+//   categoryId        Int?
+//   name              String?
+//   description       String
+//   price             Int
+//   image             String?
+//   featured          Boolean      @default(false)
+//   trending          Boolean      @default(false)
+//   latest            Boolean      @default(false)
+//   created_at        DateTime     @default(now())
+//   product_update_at DateTime     @updatedAt
+//   cartItems         CartItems[]
+//   orderItems        OrderItems[]
+// }
+
+
 model Product {
   id                Int          @id @default(autoincrement())
   category          Category?    @relation(fields: [categoryId], references: [id])
   categoryId        Int?
-  name              String?
+  name              String
   description       String
   price             Int
-  image             String?
+  image             String?      
+  make              String?      
+  model             String?      
+  year              Int?         
+  mileage           Int?         
+  engine            String?      
+  transmission      String?      
+  fuelType          String?      
+  loadCapacity      String?      
+  condition         String?      
+  features          ProductFeature[] 
+  images            ProductImage[]   
   featured          Boolean      @default(false)
   trending          Boolean      @default(false)
   latest            Boolean      @default(false)
@@ -38,6 +67,20 @@ model Product {
   product_update_at DateTime     @updatedAt
   cartItems         CartItems[]
   orderItems        OrderItems[]
+}
+
+model ProductFeature {
+  id        Int     @id @default(autoincrement())
+  feature   String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  imageUrl  String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
 }
 
 model User {
