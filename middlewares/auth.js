@@ -49,8 +49,20 @@ async function admin(req, res, next) {
     next();
 }
 
+// Authorization middleware
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions.'
+      });
+    }
+    next();
+  };
+};
 
-module.exports = { auth, admin };
+module.exports = { auth, admin, authorize };
 
 
 

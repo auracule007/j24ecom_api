@@ -1,6 +1,5 @@
-
-const { PrismaClient } = require("@prisma/client");
-const cloudinary = require("../config/cloudinary");
+const { PrismaClient } = require('@prisma/client');
+const cloudinary = require('../config/cloudinary');
 const prisma = new PrismaClient();
 
 exports.createProduct = async (req, res) => {
@@ -24,6 +23,14 @@ exports.createProduct = async (req, res) => {
   } = req.body;
 
   try {
+    // Validate required fields
+    if (!categoryId || !name || !description || !price) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required fields: categoryId, name, description, price" 
+      });
+    }
+
     const category = await prisma.category.findUnique({
       where: { id: parseInt(categoryId, 10) }
     });
@@ -36,13 +43,18 @@ exports.createProduct = async (req, res) => {
     let mainImage = null;
     if (req.files && req.files.mainImage) {
       try {
-        const file = await cloudinary.uploader.upload(
-          `data:${req.files.mainImage[0].mimetype};base64,${req.files.mainImage[0].buffer.toString("base64")}`
+        const file = req.files.mainImage[0];
+        const uploadResult = await cloudinary.uploader.upload(
+          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+          { folder: 'products' }
         );
-        mainImage = file.secure_url;
-        console.log("Main image uploaded successfully");
+        mainImage = uploadResult.secure_url;
       } catch (error) {
         console.log("Main image upload failed:", error.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Failed to upload main image" 
+        });
       }
     }
 
@@ -51,12 +63,14 @@ exports.createProduct = async (req, res) => {
     if (req.files && req.files.additionalImages) {
       for (const file of req.files.additionalImages) {
         try {
-          const result = await cloudinary.uploader.upload(
-            `data:${file.mimetype};base64,${file.buffer.toString("base64")}`
+          const uploadResult = await cloudinary.uploader.upload(
+            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+            { folder: 'products/additional' }
           );
-          additionalImages.push({ imageUrl: result.secure_url });
+          additionalImages.push({ imageUrl: uploadResult.secure_url });
         } catch (error) {
           console.log("Additional image upload failed:", error.message);
+          // Continue with other images even if one fails
         }
       }
     }
@@ -64,29 +78,37 @@ exports.createProduct = async (req, res) => {
     // Parse features if it's a string
     let featuresArray = [];
     if (features) {
-      featuresArray = typeof features === 'string' ? JSON.parse(features) : features;
+      try {
+        featuresArray = typeof features === 'string' ? JSON.parse(features) : features;
+        if (!Array.isArray(featuresArray)) {
+          featuresArray = [featuresArray];
+        }
+      } catch (error) {
+        console.log("Features parsing failed:", error.message);
+        featuresArray = [];
+      }
     }
 
     const product = await prisma.product.create({
       data: {
-        categoryId: category.id,
+        categoryId: parseInt(categoryId, 10),
         name,
         image: mainImage,
         description,
-        price: parseInt(price),
-        featured: Boolean(featured),
-        trending: Boolean(trending),
-        make,
-        model,
-        year: year ? parseInt(year) : null,
-        mileage: mileage ? parseInt(mileage) : null,
-        engine,
-        transmission,
-        fuelType,
-        loadCapacity,
-        condition,
+        price: parseInt(price, 10),
+        featured: featured === 'true' || featured === true,
+        trending: trending === 'true' || trending === true,
+        make: make || null,
+        model: model || null,
+        year: year ? parseInt(year, 10) : null,
+        mileage: mileage ? parseInt(mileage, 10) : null,
+        engine: engine || null,
+        transmission: transmission || null,
+        fuelType: fuelType || null,
+        loadCapacity: loadCapacity || null,
+        condition: condition || null,
         features: {
-          create: featuresArray.map(feature => ({ feature }))
+          create: featuresArray.map(feature => ({ feature: feature.toString() }))
         },
         images: {
           create: additionalImages
@@ -99,36 +121,53 @@ exports.createProduct = async (req, res) => {
       }
     });
 
-    if (!product) {
-      return res.status(400).json({ success: false, message: "Product not added" });
-    }
-
-    res.status(201).json({ success: true, message: "Product created successfully", data: product });
+    res.status(201).json({ 
+      success: true, 
+      message: "Product created successfully", 
+      data: product 
+    });
   } catch (error) {
-    console.log({ error: error.message });
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.log("Create product error:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
 // Get all products
-exports.getProduct = async (req, res) => {
+exports.getProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
       include: { 
         category: true,
         features: true,
         images: true
+      },
+      orderBy: {
+        created_at: 'desc'
       }
     });
     
-    if (!products) {
-      return res.status(400).json({ success: false, message: "No products found" });
+    if (!products || products.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "No products found" 
+      });
     }
     
-    return res.status(200).json({ success: true, data: products });
+    return res.status(200).json({ 
+      success: true, 
+      data: products 
+    });
   } catch (error) {
-    console.log({ message: error.message });
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.log("Get products error:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
@@ -136,8 +175,16 @@ exports.getProduct = async (req, res) => {
 exports.getSingleProduct = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!id || isNaN(parseInt(id, 10))) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid product ID" 
+      });
+    }
+    
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id, 10) },
       include: { 
         category: true,
         features: true,
@@ -146,13 +193,23 @@ exports.getSingleProduct = async (req, res) => {
     });
     
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
     }
     
-    return res.status(200).json({ success: true, data: product });
+    return res.status(200).json({ 
+      success: true, 
+      data: product 
+    });
   } catch (error) {
-    console.log({ message: error.message });
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.log("Get single product error:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
@@ -160,6 +217,14 @@ exports.getSingleProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!id || isNaN(parseInt(id, 10))) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid product ID" 
+      });
+    }
+    
     const {
       name,
       description,
@@ -178,31 +243,51 @@ exports.updateProduct = async (req, res) => {
       features: featureData
     } = req.body;
 
+    // Check if product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: parseInt(id, 10) }
+    });
+    
+    if (!existingProduct) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+
     // Handle main image upload if provided
     let mainImage = undefined;
     if (req.files && req.files.mainImage) {
       try {
-        const file = await cloudinary.uploader.upload(
-          `data:${req.files.mainImage[0].mimetype};base64,${req.files.mainImage[0].buffer.toString("base64")}`
+        const file = req.files.mainImage[0];
+        const uploadResult = await cloudinary.uploader.upload(
+          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+          { folder: 'products' }
         );
-        mainImage = file.secure_url;
-        console.log("Main image uploaded successfully");
+        mainImage = uploadResult.secure_url;
       } catch (error) {
         console.log("Main image upload failed:", error.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Failed to upload main image" 
+        });
       }
     }
 
     // Handle additional images upload if provided
-    let additionalImages = [];
+    let additionalImages = undefined;
     if (req.files && req.files.additionalImages) {
+      additionalImages = [];
       for (const file of req.files.additionalImages) {
         try {
-          const result = await cloudinary.uploader.upload(
-            `data:${file.mimetype};base64,${file.buffer.toString("base64")}`
+          const uploadResult = await cloudinary.uploader.upload(
+            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+            { folder: 'products/additional' }
           );
-          additionalImages.push({ imageUrl: result.secure_url });
+          additionalImages.push({ imageUrl: uploadResult.secure_url });
         } catch (error) {
           console.log("Additional image upload failed:", error.message);
+          // Continue with other images even if one fails
         }
       }
     }
@@ -210,54 +295,108 @@ exports.updateProduct = async (req, res) => {
     // Parse features if it's a string
     let featuresArray = [];
     if (featureData) {
-      featuresArray = typeof featureData === 'string' ? JSON.parse(featureData) : featureData;
+      try {
+        featuresArray = typeof featureData === 'string' ? JSON.parse(featureData) : featureData;
+        if (!Array.isArray(featuresArray)) {
+          featuresArray = [featuresArray];
+        }
+      } catch (error) {
+        console.log("Features parsing failed:", error.message);
+        featuresArray = [];
+      }
     }
 
-    // First delete existing features and images
-    await prisma.productFeature.deleteMany({
-      where: { productId: parseInt(id) }
-    });
-    
-    await prisma.productImage.deleteMany({
-      where: { productId: parseInt(id) }
-    });
+    // Prepare update data
+    const updateData = {
+      name: name || existingProduct.name,
+      description: description || existingProduct.description,
+      price: price ? parseInt(price, 10) : existingProduct.price,
+      featured: featured !== undefined ? (featured === 'true' || featured === true) : existingProduct.featured,
+      trending: trending !== undefined ? (trending === 'true' || trending === true) : existingProduct.trending,
+      make: make !== undefined ? make : existingProduct.make,
+      model: model !== undefined ? model : existingProduct.model,
+      year: year !== undefined ? (year ? parseInt(year, 10) : null) : existingProduct.year,
+      mileage: mileage !== undefined ? (mileage ? parseInt(mileage, 10) : null) : existingProduct.mileage,
+      engine: engine !== undefined ? engine : existingProduct.engine,
+      transmission: transmission !== undefined ? transmission : existingProduct.transmission,
+      fuelType: fuelType !== undefined ? fuelType : existingProduct.fuelType,
+      loadCapacity: loadCapacity !== undefined ? loadCapacity : existingProduct.loadCapacity,
+      condition: condition !== undefined ? condition : existingProduct.condition,
+    };
 
-    const product = await prisma.product.update({
-      where: { id: parseInt(id) },
-      data: {
-        name,
-        description,
-        price: parseInt(price),
-        featured: Boolean(featured),
-        trending: Boolean(trending),
-        make,
-        model,
-        year: year ? parseInt(year) : null,
-        mileage: mileage ? parseInt(mileage) : null,
-        engine,
-        transmission,
-        fuelType,
-        loadCapacity,
-        condition,
-        ...(mainImage && { image: mainImage }),
-        features: {
-          create: featuresArray.map(feature => ({ feature }))
-        },
-        images: {
-          create: additionalImages
+    // Add image if provided
+    if (mainImage) {
+      updateData.image = mainImage;
+    }
+
+    // Start transaction for updates
+    const result = await prisma.$transaction(async (tx) => {
+      // Update product
+      const product = await tx.product.update({
+        where: { id: parseInt(id, 10) },
+        data: updateData,
+        include: {
+          features: true,
+          images: true,
+          category: true
         }
-      },
-      include: {
-        features: true,
-        images: true,
-        category: true
+      });
+
+      // Update features if provided
+      if (featuresArray.length > 0) {
+        // Delete existing features
+        await tx.productFeature.deleteMany({
+          where: { productId: parseInt(id, 10) }
+        });
+        
+        // Create new features
+        await tx.productFeature.createMany({
+          data: featuresArray.map(feature => ({
+            feature: feature.toString(),
+            productId: parseInt(id, 10)
+          }))
+        });
       }
+
+      // Update images if provided
+      if (additionalImages && additionalImages.length > 0) {
+        // Delete existing images
+        await tx.productImage.deleteMany({
+          where: { productId: parseInt(id, 10) }
+        });
+        
+        // Create new images
+        await tx.productImage.createMany({
+          data: additionalImages.map(image => ({
+            imageUrl: image.imageUrl,
+            productId: parseInt(id, 10)
+          }))
+        });
+      }
+
+      // Return updated product with relations
+      return await tx.product.findUnique({
+        where: { id: parseInt(id, 10) },
+        include: {
+          features: true,
+          images: true,
+          category: true
+        }
+      });
     });
 
-    res.status(200).json({ success: true, message: "Product updated successfully", data: product });
+    res.status(200).json({ 
+      success: true, 
+      message: "Product updated successfully", 
+      data: result 
+    });
   } catch (error) {
-    console.log({ message: error.message });
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.log("Update product error:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
@@ -266,79 +405,40 @@ exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // First delete features and images (due to foreign key constraint)
-    await prisma.productFeature.deleteMany({
-      where: { productId: parseInt(id) }
+    if (!id || isNaN(parseInt(id, 10))) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid product ID" 
+      });
+    }
+    
+    // Check if product exists
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id, 10) }
     });
     
-    await prisma.productImage.deleteMany({
-      where: { productId: parseInt(id) }
-    });
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
     
-    // Then delete the product
+    // Delete the product (features and images will be deleted automatically due to onDelete: Cascade)
     await prisma.product.delete({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id, 10) }
     });
     
-    res.status(200).json({ success: true, message: "Product deleted successfully" });
+    res.status(200).json({ 
+      success: true, 
+      message: "Product deleted successfully" 
+    });
   } catch (error) {
-    console.log({ message: error.message });
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.log("Delete product error:", error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-// const { PrismaClient} = require("@prisma/client");
-// const cloudinary = require("../config/cloudinary");
-// const prisma = new PrismaClient();
-
-
-// exports.createProduct = async(req, res) => {
-//     const { categoryId, name, description, price, featured, trending } = req.body;
-//     try {
-//         const category = await prisma.category.findUnique({ where: { id: parseInt(categoryId, 10) }})
-//         if(!category) return res.status(400).json({ success: false, message: "Invalid categoryId"})
-
-//         let result;
-//         try {
-//             const file = await cloudinary.uploader.upload(`data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`)
-//             result= file
-//             console.log("Image uploaded successfully")
-//         } catch (error) {
-//             console.log("Image not uploaded successfully")
-//         }
-//         const product = await prisma.product.create({ data: { 
-//             categoryId: category.id,
-//             name, 
-//             image: result.secure_url,  
-//             description, 
-//             price: parseInt(price), 
-//             featured: Boolean(featured), 
-//             trending: Boolean(trending) } })
-//         if(!product) return res.status(400).json({ success: false, message:" product not added"})
-//         res.status(201).json({ success: true, message: "Product created successfully", data: product})
-//     } catch (error) {
-//         console.log({ error: error.message })
-//     }
-// }
-
-// // get all products 
-// exports.getProduct = async(req, res) => {
-//     try {
-//         const products = await prisma.product.findMany({ include: { category: true }});
-//         if(!products) return res.status(400).json({ success: false, message: "No products found"})
-//         return res.status(200).json({ success: true, data: products })
-//     } catch (error) {
-//         console.log({ message: error.message })
-//     }
-// }

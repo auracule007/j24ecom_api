@@ -44,7 +44,7 @@ exports.login = async (req, res ) => {
         const token = generateToken(user.id, user.role);
         if(!token) return res.status(400).json({ success: false, message: "Invalid token"});
 
-        return res.header("auth-token", token).status(200).json({success: true, message:"You are now logged in", token: token})
+        return res.header("auth-token", token).status(200).json({success: true, message:"You are now logged in", token: token, role: user.role })
         
     } catch (error) {
         console.log({ message: error.message })

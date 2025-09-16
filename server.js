@@ -8,9 +8,21 @@ const productRoutes = require("./routes/productRoutes");
 const authRoutes = require("./routes/authRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const app = express();
 
 dotenv.config();
+
+app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      success: false,
+      message: 'File too large. Maximum size is 5MB'
+    });
+  }
+  next(err);
+});
+
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -36,6 +48,7 @@ app.use("/", productRoutes);
 app.use("/", authRoutes);
 app.use("/", cartRoutes);
 app.use("/", paymentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Extended configuration for Swagger documentation
 const swaggerOptions = {

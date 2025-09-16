@@ -1,7 +1,7 @@
-const productController = require("../controllers/productController");
-const express = require("express");
-const uploads = require("../middlewares/upload");
+const express = require('express');
 const router = express.Router();
+const productController = require('../controllers/productController');
+const upload = require('../middlewares/upload');
 
 /**
  * @swagger
@@ -12,18 +12,21 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/product:
+ * /api/products:
  *   post:
  *     summary: Create a new product
  *     tags: [Products]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - categoryId
+ *               - name
+ *               - description
+ *               - price
  *             properties:
  *               categoryId:
  *                 type: integer
@@ -35,8 +38,7 @@ const router = express.Router();
  *                 type: string
  *                 description: The product description
  *               price:
- *                 type: number
- *                 format: float
+ *                 type: integer
  *                 description: The price of the product
  *               featured:
  *                 type: boolean
@@ -44,10 +46,46 @@ const router = express.Router();
  *               trending:
  *                 type: boolean
  *                 description: Whether the product is trending
- *               img:
+ *               make:
+ *                 type: string
+ *                 description: Product make (for vehicles)
+ *               model:
+ *                 type: string
+ *                 description: Product model (for vehicles)
+ *               year:
+ *                 type: integer
+ *                 description: Product year (for vehicles)
+ *               mileage:
+ *                 type: integer
+ *                 description: Product mileage (for vehicles)
+ *               engine:
+ *                 type: string
+ *                 description: Product engine details
+ *               transmission:
+ *                 type: string
+ *                 description: Product transmission type
+ *               fuelType:
+ *                 type: string
+ *                 description: Product fuel type
+ *               loadCapacity:
+ *                 type: string
+ *                 description: Product load capacity
+ *               condition:
+ *                 type: string
+ *                 description: Product condition
+ *               features:
+ *                 type: string
+ *                 description: JSON array of product features
+ *               mainImage:
  *                 type: string
  *                 format: binary
- *                 description: The product image file
+ *                 description: The main product image
+ *               additionalImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Additional product images
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -70,7 +108,10 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post("/api/product", uploads.single("img"), productController.createProduct);
+router.post('/api/products', upload.fields([
+  { name: 'mainImage', maxCount: 1 },
+  { name: 'additionalImages', maxCount: 10 }
+]), productController.createProduct);
 
 /**
  * @swagger
@@ -104,9 +145,11 @@ router.post("/api/product", uploads.single("img"), productController.createProdu
  *                         type: string
  *                         description: Product description
  *                       price:
- *                         type: number
- *                         format: float
+ *                         type: integer
  *                         description: Product price
+ *                       image:
+ *                         type: string
+ *                         description: Main product image URL
  *                       featured:
  *                         type: boolean
  *                         description: Whether the product is featured
@@ -116,11 +159,205 @@ router.post("/api/product", uploads.single("img"), productController.createProdu
  *                       category:
  *                         type: object
  *                         description: Category details of the product
- *       400:
+ *                       features:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             feature:
+ *                               type: string
+ *                       images:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             imageUrl:
+ *                               type: string
+ *       404:
  *         description: No products found
  *       500:
  *         description: Internal server error
  */
-router.get("/api/products", productController.getProduct);
+router.get('/api/products', productController.getProducts);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   get:
+ *     summary: Get a single product by ID
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: Product retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   description: Product details
+ *       400:
+ *         description: Invalid product ID
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/api/products/:id', productController.getSingleProduct);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   put:
+ *     summary: Update a product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Product ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: The name of the product
+ *               description:
+ *                 type: string
+ *                 description: The product description
+ *               price:
+ *                 type: integer
+ *                 description: The price of the product
+ *               featured:
+ *                 type: boolean
+ *                 description: Whether the product is featured
+ *               trending:
+ *                 type: boolean
+ *                 description: Whether the product is trending
+ *               make:
+ *                 type: string
+ *                 description: Product make (for vehicles)
+ *               model:
+ *                 type: string
+ *                 description: Product model (for vehicles)
+ *               year:
+ *                 type: integer
+ *                 description: Product year (for vehicles)
+ *               mileage:
+ *                 type: integer
+ *                 description: Product mileage (for vehicles)
+ *               engine:
+ *                 type: string
+ *                 description: Product engine details
+ *               transmission:
+ *                 type: string
+ *                 description: Product transmission type
+ *               fuelType:
+ *                 type: string
+ *                 description: Product fuel type
+ *               loadCapacity:
+ *                 type: string
+ *                 description: Product load capacity
+ *               condition:
+ *                 type: string
+ *                 description: Product condition
+ *               features:
+ *                 type: string
+ *                 description: JSON array of product features
+ *               mainImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: The main product image
+ *               additionalImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Additional product images
+ *     responses:
+ *       200:
+ *         description: Product updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Product updated successfully"
+ *                 data:
+ *                   type: object
+ *                   description: Updated product details
+ *       400:
+ *         description: Invalid product ID
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/api/products/:id', upload.fields([
+  { name: 'mainImage', maxCount: 1 },
+  { name: 'additionalImages', maxCount: 10 }
+]), productController.updateProduct);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   delete:
+ *     summary: Delete a product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: Product deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Product deleted successfully"
+ *       400:
+ *         description: Invalid product ID
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Internal server error
+ */
+router.delete('/api/products/:id', productController.deleteProduct);
 
 module.exports = router;
