@@ -2,3 +2,6 @@ node_modules
 # Keep environment variables out of version control
 .env
 note.txt
+db.json
+export.js
+seed.js
