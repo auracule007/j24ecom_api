@@ -2,6 +2,7 @@ const express = require("express");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsDoc = require("swagger-jsdoc");
 const dotenv = require("dotenv");
+const connectDB = require("./config/db");
 const cors = require("cors");
 const categoryRoutes = require("./routes/categoryRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -12,6 +13,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const app = express();
 
 dotenv.config();
+connectDB()
 
 app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
